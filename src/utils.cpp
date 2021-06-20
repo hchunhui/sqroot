@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <string>
+#include "array.h"
 
 #define HIGHFD 384
 
@@ -50,8 +51,9 @@ int xclose(int fd)
 
 int xfdpath(int fd, char *path)
 {
-	std::string link = "/proc/" + std::to_string(getpid()) + "/fd/" + std::to_string(fd);
-	int len = readlink(link.c_str(), path, PATH_MAX);
+	Array<char, PATH_MAX> link;
+	snprintf(link.data(), PATH_MAX, "/proc/%d/fd/%d", getpid(), fd);
+	int len = readlink(link.data(), path, PATH_MAX);
 
 	if (len < 0) {
 		return -errno;

@@ -374,15 +374,14 @@ int handle_bind_or_connect(struct frame *f, PathResolver *resolver)
 			return 1;
 		}
 
-		std::string new_path = realpath.data();
-		new_path += "/";
-		new_path += last.data();
-		path = new_path.c_str();
-
-		if (strlen(path) >= af_unix_path_max) {
+		if (strlen(realpath.data()) + 1 + strlen(last.data()) >= af_unix_path_max) {
 			f->nr_ret = -ENAMETOOLONG;
 			return 1;
 		}
+
+		strcat(realpath.data(), "/");
+		strcat(realpath.data(), last.data());
+		path = realpath.data();
 
 		memset(&newaddr_un, 0, sizeof(struct sockaddr_un));
 		newaddr_un.sun_family = addr_un->sun_family;
