@@ -14,9 +14,8 @@ int main(int argc, char *argv[])
 	const char *root = "/";
 	const char *wd = "/";
 	const char *library_path = NULL;
+	const char *loader = NULL;
 	std::string binds;
-	std::string loader = "ld-linux-x86-64.so.2";
-	std::string shared_object;
 	bool flag = true;
 	int opt;
 
@@ -58,17 +57,19 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
-	loader = std::string(library_path) + "/" + loader;
-	shared_object = std::string(library_path) + "/libsqroot.so";
-
 	if (binds.size())
 		setenv("SQROOT_BINDS", binds.c_str(), 1);
 	setenv("SQROOT_ROOT", root, 1);
-	setenv("SQROOT_LOADER", loader.c_str(), 1);
 	setenv("LD_LIBRARY_PATH", library_path, 1);
-	setenv("LD_PRELOAD", shared_object.c_str(), 1);
+	setenv("LD_PRELOAD", "libsqroot.so", 1);
 
-	argv[optind - 1] = (char *) loader.c_str();
 	chdir(root);
-	return execv(loader.c_str(), argv + optind - 1);
+
+	if (loader) {
+		setenv("SQROOT_LOADER", loader, 1);
+		argv[optind - 1] = (char *) loader;
+		return execv(loader, argv + optind - 1);
+	} else {
+		return execv(argv[optind], argv + optind);
+	}
 }
