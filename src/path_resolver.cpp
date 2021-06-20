@@ -261,7 +261,10 @@ int PathResolver::resolve1(FD fd, const char *path, char *last, bool follow, int
 
 			auto it = rbinds.find(newfd);
 			if (it != rbinds.end()) {
-				strcpy(last, ".");
+				if (newfd.isdir)
+					strcpy(last, ".");
+				else
+					strcpy(last, "");
 				return newfd.fd;
 			}
 

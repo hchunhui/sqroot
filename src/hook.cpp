@@ -149,9 +149,20 @@ int handle_pathat1_generic(struct frame *f, PathResolver *resolver, bool follow,
 		return 1;
 	}
 
-	f->args[0] = ret;
-	if (!empty_path)
+	if (f->nr_ret != SYS_unlinkat && path && path[0] && last[0] == 0) {
+		int err = xfdpath(ret, last.data());
+		if (err < 0) {
+			f->nr_ret = err;
+			xclose(ret);
+			return 1;
+		}
+		f->args[0] = AT_FDCWD;
 		f->args[1] = (unsigned long) last.data();
+	} else {
+		f->args[0] = ret;
+		if (!empty_path)
+			f->args[1] = (unsigned long) last.data();
+	}
 	f->nr_ret = syscall(f->nr_ret, f->args[0], f->args[1], f->args[2], f->args[3], f->args[4], f->args[5]);
 	if ((long) f->nr_ret < 0)
 		f->nr_ret = -errno;

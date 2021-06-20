@@ -45,13 +45,27 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		return 1;
 	}
 
-	if (faccessat(ret, last, X_OK, 0)) {
-		f->nr_ret = -EACCES;
-		xclose(ret);
-		return 1;
+	int exefd;
+	if (last[0]) {
+		if (faccessat(ret, last, X_OK, 0)) {
+			f->nr_ret = -EACCES;
+			xclose(ret);
+			return 1;
+		}
+		exefd = openat(ret, last, O_RDONLY);
+	} else {
+		static __thread char exepath[PATH_MAX];
+		if (xfdpath(ret, exepath) < 0) {
+			exefd = -1;
+		} else {
+			if (access(exepath, X_OK)) {
+				f->nr_ret = -EACCES;
+				xclose(ret);
+				return 1;
+			}
+			exefd = open(exepath, O_RDONLY);
+		}
 	}
-
-	int exefd = openat(ret, last, O_RDONLY);
 	if (exefd < 0) {
 		f->nr_ret = -EACCES;
 		xclose(ret);
@@ -166,8 +180,10 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		f->nr_ret = err;
 		return 1;
 	}
-	strcat(exepath, "/");
-	strcat(exepath, last);
+	if (last[0]) {
+		strcat(exepath, "/");
+		strcat(exepath, last);
+	}
 
 	strcpy(env_exepath, "SQROOT_ORIG_EXE=");
 	strcat(env_exepath, exepath);
