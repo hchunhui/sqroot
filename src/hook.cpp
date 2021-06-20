@@ -482,6 +482,16 @@ static void preprocess(struct frame *f)
 	}
 }
 
+int handle_getuid(struct frame *f)
+{
+	const char *uid = getenv("SQROOT_UID");
+	if (uid) {
+		f->nr_ret = atoi(uid);
+		return 1;
+	}
+	return 0;
+}
+
 int syscall_hook(struct frame *f)
 {
 	preprocess(f);
@@ -490,6 +500,9 @@ int syscall_hook(struct frame *f)
 	auto loader = globals.loader;
 
 	switch (f->nr_ret) {
+	case SYS_geteuid:
+	case SYS_getuid:
+		return handle_getuid(f);
 	case SYS_execve:
 		return handle_execve(f, resolver, loader);
 	case SYS_execveat:
