@@ -89,12 +89,17 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader);
 
 bool pathat_follow(struct frame *f)
 {
-	bool follow = true;
 	unsigned long nr = f->nr_ret;
+	if (nr == SYS_name_to_handle_at)
+		return !!(f->args[4] & AT_SYMLINK_FOLLOW);
+
+	if (nr == SYS_linkat)
+		return !!(f->args[4] & AT_SYMLINK_FOLLOW);
+
+	bool follow = true;
 	if (nr == SYS_openat && (f->args[2] & (O_NOFOLLOW|O_CREAT)) ||
-	    nr == SYS_fchownat && (f->args[4] & AT_SYMLINK_NOFOLLOW) || // XXX: AT_EMPTY_PATH
-	    nr == SYS_newfstatat && (f->args[3] & AT_SYMLINK_NOFOLLOW) || // XXX: AT_EMPTY_PATH
-	    nr == SYS_name_to_handle_at && (f->args[4] & AT_SYMLINK_NOFOLLOW) ||
+	    nr == SYS_fchownat && (f->args[4] & AT_SYMLINK_NOFOLLOW) ||
+	    nr == SYS_newfstatat && (f->args[3] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_statx && (f->args[2] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_faccessat2 && (f->args[3] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_mkdirat ||
@@ -227,7 +232,7 @@ int handle_readlink(struct frame *f, PathResolver *resolver)
 	return handle_path_generic(f, resolver, path_follow(f));
 }
 
-int handle_pathat13_generic(struct frame *f, PathResolver *resolver, bool follow)
+int handle_pathat13_generic(struct frame *f, PathResolver *resolver, bool follow1)
 {
 	const char *path1 = (char *) f->args[1];
 	const char *path2 = (char *) f->args[3];
@@ -235,10 +240,10 @@ int handle_pathat13_generic(struct frame *f, PathResolver *resolver, bool follow
 
 	int ret1;
 	if ((int) f->args[0] == AT_FDCWD || (path1 && path1[0] == '/')) {
-		ret1 = resolver->resolve(path1, last1.data(), follow);
+		ret1 = resolver->resolve(path1, last1.data(), follow1);
 	} else {
 		FD dirfd = FD(f->args[0]);
-		ret1 = resolver->resolve1(dirfd, path1, last1.data(), follow, 0);
+		ret1 = resolver->resolve1(dirfd, path1, last1.data(), follow1, 0);
 	}
 	if (ret1 < 0) {
 		f->nr_ret = ret1;
@@ -247,10 +252,10 @@ int handle_pathat13_generic(struct frame *f, PathResolver *resolver, bool follow
 
 	int ret2;
 	if ((int) f->args[2] == AT_FDCWD || (path2 && path2[0] == '/')) {
-		ret2 = resolver->resolve(path2, last2.data(), follow);
+		ret2 = resolver->resolve(path2, last2.data(), false);
 	} else {
 		FD dirfd = FD(f->args[2]);
-		ret2 = resolver->resolve1(dirfd, path2, last2.data(), follow, 0);
+		ret2 = resolver->resolve1(dirfd, path2, last2.data(), false, 0);
 	}
 	if (ret2 < 0) {
 		f->nr_ret = ret2;
@@ -416,8 +421,9 @@ int syscall_hook(struct frame *f)
 		return handle_pathat2_generic(f, resolver, false);
 	case SYS_renameat:
 	case SYS_renameat2:
-	case SYS_linkat:
 		return handle_pathat13_generic(f, resolver, false);
+	case SYS_linkat:
+		return handle_pathat13_generic(f, resolver, pathat_follow(f));
 	case SYS_stat:
 	case SYS_lstat:
 	case SYS_access:
