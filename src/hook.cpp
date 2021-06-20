@@ -17,6 +17,10 @@ extern "C" {
 #include <vector>
 #include <map>
 
+#ifndef SYS_faccessat2
+#define SYS_faccessat2 439
+#endif
+
 template<typename T, size_t n>__thread T Array<T, n>::pool[1000][n];
 template<typename T, size_t n>__thread int Array<T, n>::top;
 
@@ -92,6 +96,7 @@ bool pathat_follow(struct frame *f)
 	    nr == SYS_newfstatat && (f->args[3] & AT_SYMLINK_NOFOLLOW) || // XXX: AT_EMPTY_PATH
 	    nr == SYS_name_to_handle_at && (f->args[4] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_statx && (f->args[2] & AT_SYMLINK_NOFOLLOW) ||
+	    nr == SYS_faccessat2 && (f->args[3] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_mkdirat ||
 	    nr == SYS_mknodat ||
 	    nr == SYS_unlinkat) {
@@ -405,6 +410,7 @@ int syscall_hook(struct frame *f)
 	case SYS_faccessat:
 	case SYS_name_to_handle_at:
 	case SYS_statx:
+	case SYS_faccessat2:
 		return handle_pathat1_generic(f, resolver, pathat_follow(f));
 	case SYS_symlinkat:
 		return handle_pathat2_generic(f, resolver, false);
