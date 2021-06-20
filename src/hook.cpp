@@ -17,6 +17,9 @@ extern "C" {
 #include <vector>
 #include <map>
 
+#include <sys/socket.h>
+#include <sys/un.h>
+
 #ifndef SYS_faccessat2
 #define SYS_faccessat2 439
 #endif
@@ -342,6 +345,61 @@ int handle_getcwd(struct frame *f, PathResolver *resolver)
 	return 1;
 }
 
+int handle_bind_or_connect(struct frame *f, PathResolver *resolver)
+{
+	const char *root = getenv("SQROOT_ROOT");
+	if (!root)
+		return 0;
+
+	struct sockaddr_un *addr_un = (struct sockaddr_un *) f->args[1];
+	if (addr_un->sun_family == AF_UNIX && addr_un->sun_path && *(addr_un->sun_path)) {
+		socklen_t newaddrlen;
+		struct sockaddr_un newaddr_un;
+
+		const int af_unix_path_max = sizeof(addr_un->sun_path);
+		const char *path = addr_un->sun_path;
+
+		Array<char, PATH_MAX> last, realpath;
+		int pathfd = resolver->resolve(path, last.data(), false);
+		if (pathfd < 0) {
+			f->nr_ret = -ENOENT;
+			return 1;
+		}
+
+		int ret1 = xfdpath(pathfd, realpath.data());
+		xclose(pathfd);
+
+		if (ret1 < 0) {
+			f->nr_ret = -ENOENT;
+			return 1;
+		}
+
+		std::string new_path = realpath.data();
+		new_path += "/";
+		new_path += last.data();
+		path = new_path.c_str();
+
+		if (strlen(path) >= af_unix_path_max) {
+			f->nr_ret = -ENAMETOOLONG;
+			return 1;
+		}
+
+		memset(&newaddr_un, 0, sizeof(struct sockaddr_un));
+		newaddr_un.sun_family = addr_un->sun_family;
+		strcpy(newaddr_un.sun_path, path);
+		newaddrlen = SUN_LEN(&newaddr_un);
+
+		int ret = syscall(f->nr_ret, f->args[0], (struct sockaddr *)&newaddr_un, newaddrlen);
+		if (ret < 0) {
+			f->nr_ret = -errno;
+		} else {
+			f->nr_ret = ret;
+		}
+		return 1;
+	}
+	return 0;
+}
+
 int no_privilege(struct frame *f)
 {
 	f->nr_ret = -EPERM;
@@ -483,6 +541,9 @@ int syscall_hook(struct frame *f)
 	case SYS_mkdir:
 	case SYS_mknod:
 		return no_syscall(f);
+	case SYS_bind:
+	case SYS_connect:
+		return handle_bind_or_connect(f, resolver);
 	default:
 		return 0;
 	}
