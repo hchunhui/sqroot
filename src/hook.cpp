@@ -454,6 +454,18 @@ static void preprocess(struct frame *f)
 		f->args[1] = AT_FDCWD;
 		f->nr_ret = SYS_symlinkat;
 		break;
+	case SYS_unlink:
+		f->args[2] = 0;
+		f->args[1] = f->args[0];
+		f->args[0] = AT_FDCWD;
+		f->nr_ret = SYS_unlinkat;
+		break;
+	case SYS_rmdir:
+		f->args[2] = AT_REMOVEDIR;
+		f->args[1] = f->args[0];
+		f->args[0] = AT_FDCWD;
+		f->nr_ret = SYS_unlinkat;
+		break;
 	default:
 		break;
 	}
@@ -509,9 +521,7 @@ int syscall_hook(struct frame *f)
 	case SYS_lstat:
 	case SYS_access:
 	case SYS_truncate:
-	case SYS_rmdir:
 	case SYS_creat:
-	case SYS_unlink:
 	case SYS_chmod:
 	case SYS_chown:
 	case SYS_lchown:
@@ -539,6 +549,8 @@ int syscall_hook(struct frame *f)
 	case SYS_symlink:
 	case SYS_mkdir:
 	case SYS_mknod:
+	case SYS_unlink:
+	case SYS_rmdir:
 		return no_syscall(f);
 	case SYS_bind:
 	case SYS_connect:
