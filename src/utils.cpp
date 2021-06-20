@@ -38,7 +38,6 @@ int xdup(int fd)
 	}
 
 	int fd2 = fcntl(fd, F_DUPFD_CLOEXEC, HIGHFD);
-	assert(fd2 >= 0);
 	return fd2;
 }
 
