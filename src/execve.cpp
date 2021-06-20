@@ -67,6 +67,7 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 	}
 
 	if (buf[0] == '#' && buf[1] == '!') {
+		xclose(ret);
 		static __thread char line[256];
 		int ret = read(exefd, line, 255);
 		if (ret < 0) {
