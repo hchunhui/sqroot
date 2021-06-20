@@ -334,18 +334,6 @@ void prepend_at(struct frame *f, unsigned long nr)
 static void preprocess(struct frame *f)
 {
 	switch (f->nr_ret) {
-	case SYS_vfork:
-		f->nr_ret = SYS_fork;
-		break;
-	case SYS_clone:
-		if (f->args[0] & CLONE_VFORK) {
-			f->args[0] &= ~CLONE_VM;
-		} else if ((f->args[0] & CLONE_VM) &&
-			   !(f->args[0] & CLONE_SETTLS)) {
-			fprintf(stderr, "clone\n");
-			_exit(42);
-		}
-		break;
 	case SYS_open:
 		prepend_at(f, SYS_openat);
 		break;
