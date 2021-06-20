@@ -566,6 +566,15 @@ int syscall_hook(struct frame *f)
 	case SYS_bind:
 	case SYS_connect:
 		return handle_bind_or_connect(f, resolver);
+	case 0xaaaaaaaa: {
+		ssize_t ret = syscall(SYS_readlink, f->args[0], f->args[1], f->args[2]);
+		if (ret < 0) {
+			f->nr_ret = -errno;
+		} else {
+			f->nr_ret = ret;
+		}
+		return 1;
+	}
 	default:
 		return 0;
 	}
