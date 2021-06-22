@@ -20,6 +20,18 @@ extern "C" {
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#ifndef SYS_clone3
+#define SYS_clone3 435
+#endif
+
+#ifndef SYS_close_range
+#define SYS_close_range 436
+#endif
+
+#ifndef SYS_openat2
+#define SYS_openat2 437
+#endif
+
 #ifndef SYS_faccessat2
 #define SYS_faccessat2 439
 #endif
@@ -575,6 +587,9 @@ int syscall_hook(struct frame *f)
 	case SYS_mknod:
 	case SYS_unlink:
 	case SYS_rmdir:
+	case SYS_clone3:
+	case SYS_close_range:
+	case SYS_openat2:
 		return no_syscall(f);
 	case SYS_bind:
 	case SYS_connect:
