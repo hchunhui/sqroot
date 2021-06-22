@@ -49,6 +49,7 @@ static int get_comp(const char *p, int i)
 struct _G {
 	char *loader;
 	PathResolver resolver;
+	int fake_uid;
 	_G() {
 		loader = getenv("SQROOT_LOADER");
 		char *root = getenv("SQROOT_ROOT");
@@ -57,6 +58,13 @@ struct _G {
 
 		if (!resolver.set_root(root))
 			abort();
+
+		char *uid_str = getenv("SQROOT_UID");
+		if (uid_str) {
+			fake_uid = atoi(uid_str);
+		} else {
+			fake_uid = -1;
+		}
 
 		char *binds = getenv("SQROOT_BINDS");
 		if (binds) {
@@ -434,6 +442,19 @@ int no_syscall(struct frame *f)
 	return 1;
 }
 
+int ignore_eperm(struct frame *f)
+{
+	f->nr_ret = syscall(f->nr_ret, f->args[0], f->args[1], f->args[2], f->args[3], f->args[4], f->args[5]);
+	if ((long) f->nr_ret < 0) {
+		if (errno == EPERM) {
+			f->nr_ret = 0;
+		} else {
+			f->nr_ret = -errno;
+		}
+	}
+	return 1;
+}
+
 void prepend_at(struct frame *f, unsigned long nr)
 {
 	f->args[5] = f->args[4];
@@ -489,6 +510,14 @@ static void preprocess(struct frame *f)
 		f->args[0] = AT_FDCWD;
 		f->nr_ret = SYS_unlinkat;
 		break;
+	case SYS_chown:
+		prepend_at(f, SYS_fchownat);
+		f->args[4] = 0;
+		break;
+	case SYS_lchown:
+		prepend_at(f, SYS_fchownat);
+		f->args[4] = AT_SYMLINK_NOFOLLOW;
+		break;
 	default:
 		break;
 	}
@@ -496,9 +525,8 @@ static void preprocess(struct frame *f)
 
 int handle_getuid(struct frame *f)
 {
-	const char *uid = getenv("SQROOT_UID");
-	if (uid) {
-		f->nr_ret = atoi(uid);
+	if (globals.fake_uid != -1) {
+		f->nr_ret = globals.fake_uid;
 		return 1;
 	}
 	return 0;
@@ -515,6 +543,21 @@ int syscall_hook(struct frame *f)
 	case SYS_geteuid:
 	case SYS_getuid:
 		return handle_getuid(f);
+	case SYS_fchown:
+		if (globals.fake_uid == 0) {
+			return ignore_eperm(f);
+		}
+		return 0;
+	case SYS_fchownat:
+		if (handle_pathat1_generic(f, resolver, pathat_follow(f), pathat_empty_path(f))) {
+			if (globals.fake_uid == 0 && f->nr_ret == -EPERM)
+				f->nr_ret = 0;
+			return 1;
+		} else {
+			if (globals.fake_uid == 0)
+				return ignore_eperm(f);
+			return 0;
+		}
 	case SYS_execve:
 		return handle_execve(f, resolver, loader);
 	case SYS_execveat:
@@ -535,7 +578,6 @@ int syscall_hook(struct frame *f)
 	case SYS_openat:
 	case SYS_mkdirat:
 	case SYS_mknodat:
-	case SYS_fchownat:
 	case SYS_futimesat:
 	case SYS_newfstatat:
 	case SYS_unlinkat:
@@ -553,17 +595,21 @@ int syscall_hook(struct frame *f)
 		return handle_pathat13_generic(f, resolver, false, false);
 	case SYS_linkat:
 		return handle_pathat13_generic(f, resolver, pathat_follow(f), pathat_empty_path(f));
+	case SYS_chroot:
+		if (globals.fake_uid == 0 &&
+		    strcmp((char *) f->args[0], "/") == 0) {
+			f->nr_ret = 0;
+			return 1;
+		}
+		/* fall through */
 	case SYS_stat:
 	case SYS_lstat:
 	case SYS_access:
 	case SYS_truncate:
 	case SYS_creat:
 	case SYS_chmod:
-	case SYS_chown:
-	case SYS_lchown:
 	case SYS_uselib:
 	case SYS_statfs:
-	case SYS_chroot:
 	case SYS_acct:
 	case SYS_swapon:
 	case SYS_swapoff:
@@ -587,6 +633,8 @@ int syscall_hook(struct frame *f)
 	case SYS_mknod:
 	case SYS_unlink:
 	case SYS_rmdir:
+	case SYS_chown:
+	case SYS_lchown:
 	case SYS_clone3:
 	case SYS_close_range:
 	case SYS_openat2:
