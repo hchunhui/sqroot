@@ -573,6 +573,7 @@ int syscall_hook(struct frame *f)
 	case SYS_dup2:
 	case SYS_dup3:
 		return handle_dup23(f, resolver);
+	case SYS_statx:
 	case SYS_utimensat:
 		return handle_pathat1_null(f, resolver, pathat_follow(f), pathat_empty_path(f));
 	case SYS_openat:
@@ -585,7 +586,6 @@ int syscall_hook(struct frame *f)
 	case SYS_fchmodat:
 	case SYS_faccessat:
 	case SYS_name_to_handle_at:
-	case SYS_statx:
 	case SYS_faccessat2:
 		return handle_pathat1_generic(f, resolver, pathat_follow(f), pathat_empty_path(f));
 	case SYS_symlinkat:
