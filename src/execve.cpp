@@ -37,6 +37,25 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		return 1;
 	}
 
+	if (strcmp((char *) f->args[0], "/proc/self/exe") == 0) {
+		char **argv = (char **) f->args[1];
+		char **argv_last = argv;
+		while (*argv_last) argv_last++;
+		char **new_argv = (char **) malloc((argv_last - argv + 2) * sizeof(*argv));
+		memcpy(new_argv + 1, argv, (argv_last - argv + 1) * sizeof(*argv));
+		new_argv[1] = getenv("SQROOT_ORIG_EXE");
+		new_argv[0] = loader;
+
+		f->args[0]= (long) new_argv[0];
+		f->args[1] = (long) new_argv;
+		f->nr_ret = syscall(SYS_execve, f->args[0], f->args[1], f->args[2]);
+		if ((long) f->nr_ret == -1)
+			f->nr_ret = -errno;
+
+		free(new_argv);
+		return 1;
+	}
+
 	const char *path = (char *) f->args[0];
 	if (strstr(path, "ld-linux-") != NULL)
 		return 0;
