@@ -1,14 +1,20 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
+#include <pthread.h>
 #include <stdint.h>
 #include <assert.h>
 
 template<typename T, size_t n>
 class Array {
-	static __thread T pool[1000][n];
+	static pthread_once_t once;
+	static pthread_key_t key;
 	static __thread int top;
 	T *data_;
+
+	static void destroy(void *);
+	static void key_alloc();
+	static T *get();
 public:
 	T *data() { return data_; }
 	T &operator[](size_t i) {
@@ -16,8 +22,10 @@ public:
 	}
 
 	Array() {
-		assert(top < 1000);
-		data_ = pool[top++];
+		T *pool = get();
+		assert(top < 100);
+		data_ = pool + (n + 7) / 8 * 8 * top;
+		top++;
 	}
 
 	~Array() {

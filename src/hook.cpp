@@ -36,9 +36,6 @@ extern "C" {
 #define SYS_faccessat2 439
 #endif
 
-template<typename T, size_t n>__thread T Array<T, n>::pool[1000][n];
-template<typename T, size_t n>__thread int Array<T, n>::top;
-
 static int get_comp(const char *p, int i)
 {
 	while (p[i] != 0 && p[i] != ':')
