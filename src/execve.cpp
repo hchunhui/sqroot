@@ -23,23 +23,26 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 			f->nr_ret = -EACCES;
 			return 1;
 		}
-		static __thread char exepath[PATH_MAX];
-		int err = xfdpath(ret, exepath);
+		Array<char, PATH_MAX> exepath;
+		int err = xfdpath(ret, exepath.data());
 		if (err < 0) {
 			f->nr_ret = err;
 			xclose(ret);
 			return 1;
 		}
-		f->args[0] = (unsigned long) exepath;
-		return 0;
+		f->args[0] = (unsigned long) exepath.data();
+		f->nr_ret = syscall(SYS_execve, f->args[0], f->args[1], f->args[2]);
+		if ((long) f->nr_ret == -1)
+			f->nr_ret = -errno;
+		return 1;
 	}
 
 	const char *path = (char *) f->args[0];
 	if (strstr(path, "ld-linux-") != NULL)
 		return 0;
 
-	static __thread char last[PATH_MAX];
-	int ret = resolver->resolve(path, last, true);
+	Array<char, PATH_MAX> last;
+	int ret = resolver->resolve(path, last.data(), true);
 	if (ret < 0) {
 		f->nr_ret = -EACCES;
 		return 1;
@@ -47,23 +50,23 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 
 	int exefd;
 	if (last[0]) {
-		if (faccessat(ret, last, X_OK, 0)) {
+		if (faccessat(ret, last.data(), X_OK, 0)) {
 			f->nr_ret = -EACCES;
 			xclose(ret);
 			return 1;
 		}
-		exefd = openat(ret, last, O_RDONLY);
+		exefd = openat(ret, last.data(), O_RDONLY);
 	} else {
-		static __thread char exepath[PATH_MAX];
-		if (xfdpath(ret, exepath) < 0) {
+		Array<char, PATH_MAX> exepath;
+		if (xfdpath(ret, exepath.data()) < 0) {
 			exefd = -1;
 		} else {
-			if (access(exepath, X_OK)) {
+			if (access(exepath.data(), X_OK)) {
 				f->nr_ret = -EACCES;
 				xclose(ret);
 				return 1;
 			}
-			exefd = open(exepath, O_RDONLY);
+			exefd = open(exepath.data(), O_RDONLY);
 		}
 	}
 	if (exefd < 0) {
@@ -82,7 +85,7 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 
 	if (buf[0] == '#' && buf[1] == '!') {
 		xclose(ret);
-		static __thread char line[256];
+		char line[256];
 		int ret = read(exefd, line, 255);
 		if (ret < 0) {
 			f->nr_ret = -errno;
@@ -111,16 +114,16 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		}
 
 		int pathfd = resolver->resolve(line + h, NULL, true);
-		static __thread char exepath[PATH_MAX];
-		static __thread char env_exepath[PATH_MAX+20];
-		int err = xfdpath(pathfd, exepath);
+		Array<char, PATH_MAX> exepath;
+		Array<char, PATH_MAX> env_exepath; // + 20
+		int err = xfdpath(pathfd, exepath.data());
 		xclose(pathfd);
 		if (err < 0) {
 			f->nr_ret = err;
 			return 1;
 		}
-		strcpy(env_exepath, "SQROOT_ORIG_EXE=");
-		strcat(env_exepath, exepath);
+		strcpy(env_exepath.data(), "SQROOT_ORIG_EXE=");
+		strcat(env_exepath.data(), exepath.data());
 
 		char **argv = (char **) f->args[1];
 		char **argv_last = argv;
@@ -130,12 +133,12 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 			memcpy(new_argv + 3, argv, (argv_last - argv + 1) * sizeof(*argv));
 			new_argv[3] = (char *) f->args[0];
 			new_argv[2] = line + j;
-			new_argv[1] = exepath;
+			new_argv[1] = exepath.data();
 			new_argv[0] = loader;
 		} else {
 			memcpy(new_argv + 2, argv, (argv_last - argv + 1) * sizeof(*argv));
 			new_argv[2] = (char *) f->args[0];
-			new_argv[1] = exepath;
+			new_argv[1] = exepath.data();
 			new_argv[0] = loader;
 		}
 
@@ -156,7 +159,7 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 			memcpy(new_envp + 1, envp, (envp_last - envp + 1) * sizeof(*envp));
 			old_env_exepath = new_envp;
 		}
-		*old_env_exepath = env_exepath;
+		*old_env_exepath = env_exepath.data();
 
 		f->args[0] = (long) new_argv[0];
 		f->args[1] = (long) new_argv;
@@ -172,28 +175,28 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 	}
 	xclose(exefd);
 
-	static __thread char exepath[PATH_MAX];
-	static __thread char env_exepath[PATH_MAX+20];
-	int err = xfdpath(ret, exepath);
+	Array<char, PATH_MAX> exepath;
+	Array<char, PATH_MAX> env_exepath; // + 20
+	int err = xfdpath(ret, exepath.data());
 	xclose(ret);
 	if (err < 0) {
 		f->nr_ret = err;
 		return 1;
 	}
 	if (last[0]) {
-		strcat(exepath, "/");
-		strcat(exepath, last);
+		strcat(exepath.data(), "/");
+		strcat(exepath.data(), last.data());
 	}
 
-	strcpy(env_exepath, "SQROOT_ORIG_EXE=");
-	strcat(env_exepath, exepath);
+	strcpy(env_exepath.data(), "SQROOT_ORIG_EXE=");
+	strcat(env_exepath.data(), exepath.data());
 
 	char **argv = (char **) f->args[1];
 	char **argv_last = argv;
 	while (*argv_last) argv_last++;
 	char **new_argv = (char **) malloc((argv_last - argv + 2) * sizeof(*argv));
 	memcpy(new_argv + 1, argv, (argv_last - argv + 1) * sizeof(*argv));
-	new_argv[1] = exepath;
+	new_argv[1] = exepath.data();
 	new_argv[0] = loader;
 
 	char **envp = (char **) f->args[2];
@@ -213,7 +216,7 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		memcpy(new_envp + 1, envp, (envp_last - envp + 1) * sizeof(*envp));
 		old_env_exepath = new_envp;
 	}
-	*old_env_exepath = env_exepath;
+	*old_env_exepath = env_exepath.data();
 
 	f->args[0] = (long) new_argv[0];
 	f->args[1] = (long) new_argv;
