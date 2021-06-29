@@ -264,13 +264,21 @@ int handle_path_generic(struct frame *f, PathResolver *resolver, bool follow)
 
 int handle_readlink(struct frame *f, PathResolver *resolver)
 {
-	if (f->args[0] &&
-	    strcmp((char *) f->args[0], "/proc/self/exe") == 0) {
+	const char *path = (char *) f->args[0];
+	int pathlen = path ? strlen(path) : 0;
+
+	if (path &&
+	    strncmp(path, "/proc/", 6) == 0 &&
+	    strncmp(path + pathlen - 4, "/exe", 4) == 0) {
 		const char *orig_exe = getenv("SQROOT_ORIG_EXE");
-		unsigned long size = strlen(orig_exe);
 		if (orig_exe) {
+			Array<char, PATH_MAX> exepath;
+			strcpy(exepath.data(), orig_exe);
+			resolver->reverse_resolve(exepath.data(), PATH_MAX);
+			unsigned long size = strlen(exepath.data());
+
 			if (f->args[1] && f->args[2] >= size) {
-				memcpy((char *) f->args[1], orig_exe, size);
+				memcpy((char *) f->args[1], exepath.data(), size);
 				f->nr_ret = size;
 				return 1;
 			} else {
@@ -369,7 +377,14 @@ int handle_dup23(struct frame *f, PathResolver *resolver)
 
 int handle_getcwd(struct frame *f, PathResolver *resolver)
 {
-	f->nr_ret = resolver->xgetcwd((char *) f->args[0], f->args[1]);
+	char *buf = (char *) f->args[0];
+	unsigned long bsize = f->args[1];
+	char *p = getcwd(buf, bsize);
+	if (!p) {
+		return -ENAMETOOLONG;
+	}
+
+	f->nr_ret = resolver->reverse_resolve(buf, bsize);
 	return 1;
 }
 

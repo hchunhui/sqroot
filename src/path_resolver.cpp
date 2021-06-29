@@ -51,14 +51,9 @@ bool PathResolver::isin(int fd)
 	return false;
 }
 
-unsigned PathResolver::xgetcwd(char *buf, unsigned long bsize)
+long PathResolver::reverse_resolve(char *buf, unsigned long bsize)
 {
-	char *p = getcwd(buf, bsize);
-	if (!p) {
-		return -ENAMETOOLONG;
-	}
 	unsigned long size = strlen(buf);
-
 	BindInfo *lmatch = NULL;
 	unsigned long lsize = 0;
 
@@ -83,23 +78,17 @@ unsigned PathResolver::xgetcwd(char *buf, unsigned long bsize)
 		size = strlen(buf);
 	}
 
-//		fprintf(stderr, "getcwd buf : %s\n", buf);
-//		fprintf(stderr, "getcwd root: %s\n", new_root.c_str());
-
 	unsigned long rsize = new_root.size();
 	if (strncmp(buf, new_root.c_str(), rsize) == 0) {
 		if (size != rsize) {
 			memmove(buf, buf + rsize, size - rsize);
 			buf[size - rsize] = 0;
-//				fprintf(stderr, "getcwd res : %s\n", buf);
 			return size - rsize + 1;
 		} else {
 			strcpy(buf, "/");
 			return 2;
 		}
 	} else {
-//			return size;
-		// TODO
 		return -ENOENT;
 	}
 }

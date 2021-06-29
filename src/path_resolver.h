@@ -46,12 +46,12 @@ class PathResolver {
 public:
 	PathResolver();
 	bool isin(int fd);
-	unsigned xgetcwd(char *buf, unsigned long bsize);
 	bool set_root(const char *root);
 	bool bind(const char *olddir, const char *newdir);
 	int openpath(FD dirfd, const char *name);
 	int resolve1(FD fd, const char *path, char *last, bool follow, int count);
 	int resolve(const char *path, char *last, bool follow);
+	long reverse_resolve(char *buf, unsigned long bsize);
 	~PathResolver();
 };
 
