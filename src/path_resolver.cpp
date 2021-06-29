@@ -272,6 +272,10 @@ int PathResolver::resolve(const char *path, char *last, bool follow)
 		return -EFAULT;
 	}
 
+	// XXX: magic links
+	if (strncmp(path, "/proc", 5) == 0)
+		follow = false;
+
 	if (*path == '/') {
 		while (*path == '/')
 			path++;

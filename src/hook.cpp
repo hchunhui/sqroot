@@ -530,6 +530,9 @@ static void preprocess(struct frame *f)
 		prepend_at(f, SYS_fchownat);
 		f->args[4] = AT_SYMLINK_NOFOLLOW;
 		break;
+	case SYS_access:
+		prepend_at(f, SYS_faccessat);
+		break;
 	default:
 		break;
 	}
@@ -616,7 +619,6 @@ int syscall_hook(struct frame *f)
 		/* fall through */
 	case SYS_stat:
 	case SYS_lstat:
-	case SYS_access:
 	case SYS_truncate:
 	case SYS_creat:
 	case SYS_chmod:
@@ -637,6 +639,7 @@ int syscall_hook(struct frame *f)
 	case SYS_pivot_root:
 	case SYS_mount:
 		return no_privilege(f);
+	case SYS_access:
 	case SYS_open:
 	case SYS_rename:
 	case SYS_link:
