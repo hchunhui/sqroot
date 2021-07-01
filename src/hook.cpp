@@ -16,6 +16,7 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <map>
+#include <sys/prctl.h>
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -48,6 +49,12 @@ struct _G {
 	PathResolver resolver;
 	int fake_uid;
 	_G() {
+		const char *orig_exe = getenv("SQROOT_ORIG_EXE");
+		if (orig_exe) {
+			const char *slash = strrchr(orig_exe, '/');
+			slash = slash ? slash + 1 : orig_exe;
+			prctl(PR_SET_NAME, slash, 0, 0, 0);
+		}
 		loader = getenv("SQROOT_LOADER");
 		char *root = getenv("SQROOT_ROOT");
 		if (!root)
