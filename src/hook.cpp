@@ -484,6 +484,11 @@ static void preprocess(struct frame *f)
 	case SYS_open:
 		prepend_at(f, SYS_openat);
 		break;
+	case SYS_creat:
+		prepend_at(f, SYS_openat);
+		f->args[3] = f->args[2];
+		f->args[2] = O_CREAT | O_WRONLY | O_TRUNC;
+		break;
 	case SYS_mkdir:
 		prepend_at(f, SYS_mkdirat);
 		break;
@@ -620,7 +625,6 @@ int syscall_hook(struct frame *f)
 	case SYS_stat:
 	case SYS_lstat:
 	case SYS_truncate:
-	case SYS_creat:
 	case SYS_chmod:
 	case SYS_uselib:
 	case SYS_statfs:
@@ -641,6 +645,7 @@ int syscall_hook(struct frame *f)
 		return no_privilege(f);
 	case SYS_access:
 	case SYS_open:
+	case SYS_creat:
 	case SYS_rename:
 	case SYS_link:
 	case SYS_symlink:
