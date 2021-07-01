@@ -33,6 +33,29 @@ static int resolve_path(const char *path, char *realpath)
 	return 0;
 }
 
+static int try_path(const char *filename, char *realpath)
+{
+	Array<char, PATH_MAX> filepath;
+	if (!filename)
+		return -1;
+
+	if (filename[0] != '/') {
+		const char *p[] = {
+			"/usr/lib/",
+			"/usr/lib/x86_64-linux-gnu/",
+			NULL,
+		};
+		for (const char **q = p; *q; q++) {
+			strcpy(filepath.data(), *q);
+			strcat(filepath.data(), filename);
+			if (resolve_path(filepath.data(), realpath) == 0)
+				return 0;
+		}
+		return -1;
+	}
+	return resolve_path(filename, realpath);
+}
+
 extern "C" {
 
 __attribute__((visibility("default")))
@@ -45,11 +68,11 @@ void *dlopen(const char *filename, int flags)
 		orig = (T) dlsym(RTLD_NEXT, "dlopen");
 	}
 
-	int ret = resolve_path(filename, realpath.data());
+	int ret = try_path(filename, realpath.data());
 	if (ret == 0) {
 		return orig(realpath.data(), flags);
 	} else {
-		return orig("", 0);
+		return orig(filename, flags);
 	}
 }
 
@@ -63,11 +86,11 @@ void *dlmopen(Lmid_t lmid, const char *filename, int flags)
 		orig = (T) dlsym(RTLD_NEXT, "dlmopen");
 	}
 
-	int ret = resolve_path(filename, realpath.data());
+	int ret = try_path(filename, realpath.data());
 	if (ret == 0) {
 		return orig(lmid, realpath.data(), flags);
 	} else {
-		return orig(lmid, "", 0);
+		return orig(lmid, filename, flags);
 	}
 }
 
