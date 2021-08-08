@@ -48,7 +48,12 @@ struct _G {
 	char *loader;
 	PathResolver resolver;
 	int fake_uid;
+	char *gconv_path;
+	int len_gconv_path;
 	_G() {
+		gconv_path = getenv("GCONV_PATH");
+		if (gconv_path)
+			len_gconv_path = strlen(gconv_path);
 		const char *orig_exe = getenv("SQROOT_ORIG_EXE");
 		if (orig_exe) {
 			const char *slash = strrchr(orig_exe, '/');
@@ -604,6 +609,12 @@ int syscall_hook(struct frame *f)
 	case SYS_utimensat:
 		return handle_pathat1_null(f, resolver, pathat_follow(f), pathat_empty_path(f));
 	case SYS_openat:
+		if (globals.gconv_path &&
+		    (int) f->args[0] == AT_FDCWD && f->args[1] &&
+		    strncmp((char *) f->args[1], globals.gconv_path, globals.len_gconv_path) == 0) {
+			return 0;
+		}
+		/* fall through */
 	case SYS_mkdirat:
 	case SYS_mknodat:
 	case SYS_futimesat:
