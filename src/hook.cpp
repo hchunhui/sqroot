@@ -134,6 +134,7 @@ bool pathat_follow(struct frame *f)
 	    nr == SYS_newfstatat && (f->args[3] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_statx && (f->args[2] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_faccessat2 && (f->args[3] & AT_SYMLINK_NOFOLLOW) ||
+	    nr == SYS_utimensat && (f->args[3] & AT_SYMLINK_NOFOLLOW) ||
 	    nr == SYS_mkdirat ||
 	    nr == SYS_mknodat ||
 	    nr == SYS_unlinkat) {
