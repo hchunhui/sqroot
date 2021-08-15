@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 
 	if (loader) {
 		setenv("SQROOT_LOADER", loader, 1);
+		setenv("SQROOT_ORIG_EXE", argv[optind], 1);
 		setenv("SQROOT_ORIG_ARGV0", argv[optind], 1);
 		argv[optind - 1] = (char *) loader;
 		return execv(loader, argv + optind - 1);

@@ -170,26 +170,17 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 			envp_last++;
 		}
 
-		char **new_envp;
-		if (old_env_exepath) {
-			new_envp = envp;
-		} else {
-			new_envp = (char **) malloc((envp_last - envp + 2) * sizeof(*envp));
-			memcpy(new_envp + 1, envp, (envp_last - envp + 1) * sizeof(*envp));
-			old_env_exepath = new_envp;
-		}
-		*old_env_exepath = env_exepath.data();
+		if (old_env_exepath)
+			*old_env_exepath = env_exepath.data();
 
 		f->args[0] = (long) new_argv[0];
 		f->args[1] = (long) new_argv;
-		f->args[2] = (long) new_envp;
+		f->args[2] = (long) envp;
 		f->nr_ret = syscall(SYS_execve, f->args[0], f->args[1], f->args[2]);
 		if ((long) f->nr_ret == -1)
 			f->nr_ret = -errno;
 
 		free(new_argv);
-		if (new_envp != envp)
-			free(new_envp);
 		return 1;
 	}
 	xclose(exefd);
@@ -234,27 +225,19 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		envp_last++;
 	}
 
-	char **new_envp;
-	if (old_env_exepath) {
-		new_envp = envp;
-	} else {
-		new_envp = (char **) malloc((envp_last - envp + 2) * sizeof(*envp));
-		memcpy(new_envp + 1, envp, (envp_last - envp + 1) * sizeof(*envp));
-		old_env_exepath = new_envp;
-	}
-	*old_env_exepath = env_exepath.data();
+	if (old_env_exepath)
+		*old_env_exepath = env_exepath.data();
+
 	if (old_env_argv0)
 		*old_env_argv0 = env_argv0.data();
 
 	f->args[0] = (long) new_argv[0];
 	f->args[1] = (long) new_argv;
-	f->args[2] = (long) new_envp;
+	f->args[2] = (long) envp;
 	f->nr_ret = syscall(SYS_execve, f->args[0], f->args[1], f->args[2]);
 	if ((long) f->nr_ret == -1)
 		f->nr_ret = -errno;
 
 	free(new_argv);
-	if (new_envp != envp)
-		free(new_envp);
 	return 1;
 }
