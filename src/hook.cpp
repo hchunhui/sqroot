@@ -44,6 +44,14 @@ static int get_comp(const char *p, int i)
 	return i;
 }
 
+__attribute__((constructor))
+static void fix_argv0(int argc, const char **argv, const char **envp)
+{
+	char *argv0 = getenv("SQROOT_ORIG_ARGV0");
+	if (argv0)
+		argv[0] = argv0;
+}
+
 struct _G {
 	char *loader;
 	PathResolver resolver;
