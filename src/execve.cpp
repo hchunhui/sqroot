@@ -41,9 +41,13 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		char **argv = (char **) f->args[1];
 		char **argv_last = argv;
 		while (*argv_last) argv_last++;
-		char **new_argv = (char **) malloc((argv_last - argv + 2) * sizeof(*argv));
-		memcpy(new_argv + 1, argv, (argv_last - argv + 1) * sizeof(*argv));
-		new_argv[1] = getenv("SQROOT_ORIG_EXE");
+
+		char **new_argv = (char **) malloc((argv_last - argv + 5) * sizeof(*argv));
+		memcpy(new_argv + 4, argv, (argv_last - argv + 1) * sizeof(*argv));
+		new_argv[4] = getenv("SQROOT_ORIG_EXE");
+		new_argv[3] = (char *) "";
+		new_argv[2] = (char *) "--inhibit-rpath";
+		new_argv[1] = (char *) "--inhibit-cache";
 		new_argv[0] = loader;
 
 		f->args[0]= (long) new_argv[0];
@@ -152,17 +156,23 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 		strcpy(env_argv0.data(), "SQROOT_ORIG_ARGV0=");
 		strcat(env_argv0.data(), argv[0]);
 
-		char **new_argv = (char **) malloc((argv_last - argv + 4) * sizeof(*argv));
+		char **new_argv = (char **) malloc((argv_last - argv + 7) * sizeof(*argv));
 		if (j > 0) {
-			memcpy(new_argv + 3, argv, (argv_last - argv + 1) * sizeof(*argv));
-			new_argv[3] = (char *) f->args[0];
-			new_argv[2] = line + j;
-			new_argv[1] = exepath.data();
+			memcpy(new_argv + 6, argv, (argv_last - argv + 1) * sizeof(*argv));
+			new_argv[6] = (char *) f->args[0];
+			new_argv[5] = line + j;
+			new_argv[4] = exepath.data();
+			new_argv[3] = (char *) "";
+			new_argv[2] = (char *) "--inhibit-rpath";
+			new_argv[1] = (char *) "--inhibit-cache";
 			new_argv[0] = loader;
 		} else {
-			memcpy(new_argv + 2, argv, (argv_last - argv + 1) * sizeof(*argv));
-			new_argv[2] = (char *) f->args[0];
-			new_argv[1] = exepath.data();
+			memcpy(new_argv + 5, argv, (argv_last - argv + 1) * sizeof(*argv));
+			new_argv[5] = (char *) f->args[0];
+			new_argv[4] = exepath.data();
+			new_argv[3] = (char *) "";
+			new_argv[2] = (char *) "--inhibit-rpath";
+			new_argv[1] = (char *) "--inhibit-cache";
 			new_argv[0] = loader;
 		}
 
@@ -219,9 +229,13 @@ int handle_execve(struct frame *f, PathResolver *resolver, char *loader)
 
 	strcpy(env_argv0.data(), "SQROOT_ORIG_ARGV0=");
 	strcat(env_argv0.data(), argv[0]);
-	char **new_argv = (char **) malloc((argv_last - argv + 2) * sizeof(*argv));
-	memcpy(new_argv + 1, argv, (argv_last - argv + 1) * sizeof(*argv));
-	new_argv[1] = exepath.data();
+
+	char **new_argv = (char **) malloc((argv_last - argv + 5) * sizeof(*argv));
+	memcpy(new_argv + 4, argv, (argv_last - argv + 1) * sizeof(*argv));
+	new_argv[4] = exepath.data();
+	new_argv[3] = (char *) "";
+	new_argv[2] = (char *) "--inhibit-rpath";
+	new_argv[1] = (char *) "--inhibit-cache";
 	new_argv[0] = loader;
 
 	char **envp = (char **) f->args[2];
