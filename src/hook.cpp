@@ -50,6 +50,7 @@ struct _G {
 	int fake_uid;
 	char *gconv_path;
 	int len_gconv_path;
+	bool disable_seccomp;
 	_G() {
 		gconv_path = getenv("GCONV_PATH");
 		if (gconv_path)
@@ -74,6 +75,11 @@ struct _G {
 		} else {
 			fake_uid = -1;
 		}
+
+		if (getenv("SQROOT_DISABLE_SECCOMP"))
+			disable_seccomp = true;
+		else
+			disable_seccomp = false;
 
 		char *binds = getenv("SQROOT_BINDS");
 		if (binds) {
@@ -690,6 +696,21 @@ int syscall_hook(struct frame *f)
 		}
 		return 1;
 	}
+	case SYS_seccomp:
+		if (globals.disable_seccomp) {
+			f->nr_ret = -ENOSYS;
+			return 1;
+		}
+		return 0;
+	case SYS_prctl:
+		if (globals.disable_seccomp) {
+			if (f->args[0] == PR_SET_SECCOMP ||
+			    f->args[0] == PR_GET_SECCOMP) {
+				f->nr_ret = -EINVAL;
+				return 1;
+			}
+		}
+		return 0;
 	default:
 		return 0;
 	}
