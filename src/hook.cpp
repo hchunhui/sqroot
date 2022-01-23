@@ -48,8 +48,10 @@ __attribute__((constructor))
 static void fix_argv0(int argc, const char **argv, const char **envp)
 {
 	char *argv0 = getenv("SQROOT_ORIG_ARGV0");
-	if (argv0)
+	if (argv0) {
 		argv[0] = argv0;
+		program_invocation_short_name = argv0;
+	}
 }
 
 struct _G {
