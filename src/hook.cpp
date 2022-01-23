@@ -44,13 +44,20 @@ static int get_comp(const char *p, int i)
 	return i;
 }
 
+static char *xbasename(char *path)
+{
+	char *base = strrchr(path, '/');
+	return base ? base+1 : path;
+}
+
 __attribute__((constructor))
 static void fix_argv0(int argc, const char **argv, const char **envp)
 {
 	char *argv0 = getenv("SQROOT_ORIG_ARGV0");
 	if (argv0) {
 		argv[0] = argv0;
-		program_invocation_short_name = argv0;
+		program_invocation_name = argv0;
+		program_invocation_short_name = xbasename(argv0);
 	}
 }
 
