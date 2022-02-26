@@ -40,5 +40,4 @@ template<typename T, size_t n>
 void Array<T, n>::key_alloc()
 {
 	pthread_key_create(&key, destroy);
-	pthread_setspecific(key, NULL);
 }
