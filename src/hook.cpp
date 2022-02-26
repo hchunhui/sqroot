@@ -13,9 +13,6 @@ extern "C" {
 #include "path_resolver.h"
 #include "array.h"
 #include "utils.h"
-#include <string>
-#include <vector>
-#include <map>
 #include <sys/prctl.h>
 
 #include <sys/socket.h>
