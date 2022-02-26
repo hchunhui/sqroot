@@ -3,7 +3,7 @@
 
 template class Array<char, 4096>;
 
-template<typename T, size_t n> pthread_once_t Array<T, n>::once = PTHREAD_ONCE_INIT;
+template<typename T, size_t n> std::atomic<int> Array<T, n>::once;
 template<typename T, size_t n> pthread_key_t Array<T, n>::key;
 template<typename T, size_t n>__thread int Array<T, n>::top;
 
@@ -24,7 +24,17 @@ void Array<T, n>::destroy(void *pool)
 template<typename T, size_t n>
 T *Array<T, n>::get()
 {
-	pthread_once(&once, key_alloc);
+	int val = once.load(std::memory_order_acquire);
+	if (val != 2) {
+		val = once.load(std::memory_order_acquire);
+		while (val != 2 && !once.compare_exchange_weak(val, 1, std::memory_order_acq_rel));
+		if (val == 0) {
+			key_alloc();
+			once.store(2, std::memory_order_release);
+		} else if (val == 1) {
+			while (once.load(std::memory_order_acquire) != 2);
+		}
+	}
 	T *pool = (T *) pthread_getspecific(key);
 	if (!pool) {
 		void *p = mmap(NULL, round(n), PROT_READ | PROT_WRITE,

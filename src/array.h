@@ -4,10 +4,11 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <assert.h>
+#include <atomic>
 
 template<typename T, size_t n>
 class Array {
-	static pthread_once_t once;
+	static std::atomic<int> once;
 	static pthread_key_t key;
 	static __thread int top;
 	T *data_;
