@@ -678,6 +678,8 @@ int syscall_hook(struct frame *f)
 	case SYS_llistxattr:
 	case SYS_removexattr:
 	case SYS_lremovexattr:
+	case SYS_utime:
+	case SYS_utimes:
 		return handle_path_generic(f, resolver, path_follow(f));
 	case SYS_pivot_root:
 	case SYS_mount:
